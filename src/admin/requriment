@@ -1,0 +1,83 @@
+group
+- super admin
+- admin
+- user
+
+resouce A: 
+  - new
+  - edit
+  - ban
+  - delete
+  - view
+
+group xxx: <- user A => role base (attribute conole base)
+rsA - view
+rsA - edit
+rsB - edit
+
+- Audit.
+- multi group
+
+
+role: name, createdAt, updatedAt: 1, superadmin
+permission: id, name, createdAt, updatedAt: 1, FundingFiatDepositHistory:Create
+
+
+
+role permission: role, permission: superadmin, *:*, admin: *:view, hr, user:kyc:update
+// permission: resource:attribute:action: user:kyc:update, user:*:view
+
+user role: id, user id, role
+
+
+resource:
+
+user: role -> permssion
+admin -> edit -> resouce A
+
+
+
+
+edit, attribute -> check permission -> true -> access
+view
+delete
+new
+
+
+user -> role -> permission
+
+
+
+permission
+video:get
+
+
+list resource
+{
+  resourceA: [{ acName, value: true }, ac2, ac3, ac3]
+}
+
+
+role A
+
+            all  create update  view delete
+resource X   x   x 
+  
+
+              create  update view delete
+resource Y
+
+
+              create  update view delete
+resource Z
+
+
+tech dept: 
+- save roles -> load roles dynamic in the availableValues.
+- save grants -> load grants again.
+- change pass by yourself: cannot change pass now.
+
+- create default 2 roles:
++ admin: read/edit.
++ cs: read.
+- remove grant resource on UI

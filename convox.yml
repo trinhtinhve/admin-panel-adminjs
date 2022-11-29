@@ -1,0 +1,13 @@
+services:
+  admin:
+    domain: ${HOST}
+    build: .
+    port: 3000
+    environment:
+      - PORT=3000
+      - NODE_ENV=development
+      - DATABASE_URL
+      - DATABASE_URL_LAUNCHY
+      - ADMIN_EMAIL
+      - ADMIN_PASSWORD
+      - ADMIN_SESSION_SECRET

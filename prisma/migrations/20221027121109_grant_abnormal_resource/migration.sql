@@ -1,0 +1,2 @@
+insert into grants(role, resource, action) values('admin', 'FundingAbnormalAction', 'read:any') on conflict (role, resource, action) do nothing;
+insert into grants(role, resource, action) values('cs', 'FundingAbnormalAction', 'read:any') on conflict (role, resource, action) do nothing;

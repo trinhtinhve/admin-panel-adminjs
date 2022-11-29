@@ -1,0 +1,428 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@internal/launchy/prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_LAUNCHY")
+}
+
+model User {
+  id                        Int                      @id @default(autoincrement())
+  email                     String                   @unique
+  name                      String?
+  isRegisteredWithGoogle    Boolean                  @default(false)
+  currentHashedRefreshToken String?
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
+  kycLevel                  Int                      @default(0) @db.SmallInt
+  phoneNumber               String?                  @unique
+  phoneNumberVerifiedAt     DateTime?
+  identityVerifications     IdentityVerification[]   @relation("identity_verificationsTousers")
+  push_notification_tokens  PushNotificationTokens[] @relation("push_notification_tokensTousers")
+  walletConfig              WalletConfig?
+  savedWallets              SavedWallet[]
+
+  @@map("users")
+}
+
+model WalletConfig {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  threshold Int
+  address   String?
+  chainId   Int?
+  nonce     Int      @default(1)
+  owner     User     @relation(fields: [userId], references: [id])
+  signers   Signer[]
+
+  @@map("wallet_configs")
+}
+
+model Signer {
+  id             Int          @id @default(autoincrement())
+  walletConfigId Int
+  weight         Int
+  address        String
+  walletConfig   WalletConfig @relation(fields: [walletConfigId], references: [id])
+
+  @@map("signers")
+}
+
+model Otp {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  otp        String   @db.VarChar(10)
+  expiredAt  DateTime @default(now())
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("otp")
+}
+
+model Country {
+  id          Int      @id @default(autoincrement())
+  countryCode String   @db.VarChar
+  name        String   @db.VarChar
+  flagImage   String
+  phoneCode   String   @db.VarChar
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+  isActive    Boolean? @default(true)
+
+  @@map("countries")
+}
+
+model IdentityVerification {
+  country        String   @db.VarChar
+  documentType   String   @db.VarChar
+  userId         Int
+  identityNumber String?  @db.VarChar
+  passportNumber String?  @db.VarChar
+  fullName       String   @db.VarChar
+  imageFront     String
+  imageBack      String?
+  imageFace      String
+  isActive       Boolean  @default(false)
+  extraData      Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
+  description    String?
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  users          User     @relation("identity_verificationsTousers", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("identity_verifications")
+}
+
+model FundingFiatDeposit {
+  id                       Int     @id @default(autoincrement())
+  orderRef                 String  @unique @db.VarChar(200)
+  orderStatus              String  @default("PROCESSING") @db.VarChar(200)
+  status                   String  @default("FUNDING_NEW") @db.VarChar(200)
+  address                  String
+  currency                 String  @default("") @db.VarChar(20)
+  fiatAmount               Float   @default(0)
+  busdAmount               Float   @default(0)
+  fromBankName             String  @default("") @db.VarChar(200)
+  paymentMethod            String  @default("") @db.VarChar(30)
+  fiatDepositId            Int     @default(0)
+  fiatDepositStatus        String  @default("FUNDING_NEW") @db.VarChar(200)
+  fiatDepositResult        Json    @default("{}")
+  fiatConfirmMoneySent     Boolean @default(false)
+  fiatDepositRef           String  @default("") @db.VarChar(100)
+  fiatDepositRefResult     Json    @default("{}")
+  ammSourceCoin            String  @default("") @db.VarChar(50)
+  ammSourceAmount          Float   @default(0)
+  ammDestinationCoin       String  @default("") @db.VarChar(50)
+  ammOrderId               Int     @default(0)
+  ammOrderStatus           String  @default("FUNDING_NEW") @db.VarChar(200)
+  ammDestAmountAfterFee    Float   @default(0)
+  ammOrderResult           Json    @default("{}")
+  ammOrderRef              String  @default("") @db.VarChar(100)
+  withdrawCoinAddress      String  @default("")
+  withdrawCoinAmount       Float   @default(0)
+  withdrawCoinCurrency     String  @default("") @db.VarChar(20)
+  withdrawCoinLayer        String  @default("") @db.VarChar(50)
+  withdrawId               Int     @default(0)
+  withdrawStatus           String  @default("FUNDING_NEW") @db.VarChar(200)
+  withdrawResult           Json    @default("{}")
+  withdrawActionableId     Int     @default(0)
+  withdrawActionableResult Json    @default("{}")
+  withdrawActionableStatus String  @default("FUNDING_NEW") @db.VarChar(200)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    Int
+
+  version Int @default(1)
+
+  @@unique([id, status], name: "funding_fiat_deposits_id_status_unique")
+  @@index([userId, status, createdAt(sort: Desc)])
+  @@map("funding_fiat_deposits")
+}
+
+model FiatWithdrawalDetail {
+  id                         Int    @id @default(autoincrement())
+  fiatWithdrawalDetailId     Int    @unique
+  name                       String @db.VarChar(200)
+  currency                   String @db.VarChar(20)
+  bankName                   String @db.VarChar(200)
+  bankAccountNumber          String @db.VarChar(50)
+  bankAccountName            String @db.VarChar(200)
+  status                     String @db.VarChar(20)
+  fiatWithdrawalDetailResult Json   @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    Int
+
+  @@map("fiat_withdrawal_details")
+}
+
+model FundingFiatWithdrawal {
+  id                          Int    @id @default(autoincrement())
+  orderRef                    String @unique @db.VarChar(200)
+  orderStatus                 String @default("PROCESSING") @db.VarChar(200)
+  status                      String @default("FUNDING_NEW") @db.VarChar(200)
+  currency                    String @db.VarChar(20)
+  busdAmount                  Float
+  fiatWithdrawalDetailId      Int
+  userId                      Int
+  txnHash                     String @unique
+  withdrawalBankName          String @default("") @db.VarChar(200)
+  withdrawalBankAccountName   String @default("") @db.VarChar(200)
+  withdrawalBankAccountNumber String @default("") @db.VarChar(50)
+  withdrawalPaymentMethod     String @default("") @db.VarChar(30)
+  withdrawalFiatAmount        Float  @default(0)
+
+  ammSourceCoin         String @default("") @db.VarChar(50)
+  ammSourceAmount       Float  @default(0)
+  ammDestinationCoin    String @default("") @db.VarChar(50)
+  ammOrderId            Int    @default(0)
+  ammOrderStatus        String @default("FUNDING_NEW") @db.VarChar(200)
+  ammDestAmountAfterFee Float  @default(0)
+  ammOrderResult        Json   @default("{}")
+  ammOrderRef           String @default("") @db.VarChar(100)
+
+  fiatWithdrawalAmount           Float  @default(0)
+  fiatWithdrawalId               Int    @default(0)
+  fiatWithdrawalStatus           String @default("FUNDING_NEW") @db.VarChar(200)
+  fiatWithdrawalActionableId     Int    @default(0)
+  fiatWithdrawalActionableResult Json   @default("{}")
+  fiatWithdrawalActionableStatus String @default("FUNDING_NEW") @db.VarChar(200)
+  fiatWithdrawalRef              String @default("") @db.VarChar(100)
+  fiatWithdrawalResult           Json   @default("{}")
+
+  blockchainFromAddress String @default("")
+  blockchainToAddress   String @default("")
+  blockchainCoinName    String @default("") @db.VarChar(50)
+  blockchainCoinAmount  Float  @default(0)
+  blockchainCoinStatus  String @default("FUNDING_NEW") @db.VarChar(200)
+  blockchainCoinResult  Json   @default("{}")
+
+  coinDepositId           Int    @default(0)
+  coinDepositCoinAmount   Float  @default(0)
+  coinDepositTxHash       String @default("")
+  coinDepositCoinCurrency String @default("") @db.VarChar(20)
+  coinDepositCoinLayer    String @default("") @db.VarChar(50)
+  coinDepositPortalCoin   String @default("") @db.VarChar(50)
+  coinDepositAddress      String @default("")
+  coinDepositStatus       String @default("FUNDING_NEW") @db.VarChar(200)
+  coinDepositResult       Json   @default("{}")
+
+  version Int @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([id, status], name: "funding_fiat_withdrawals_id_status_unique")
+  @@index([userId, status, createdAt(sort: Desc)])
+  @@map("funding_fiat_withdrawals")
+}
+
+model FundingAbnormalAction {
+  id     Int  @id @default(autoincrement())
+  userId Int?
+
+  action        String? @db.VarChar(200)
+  reasonCode    String? @db.VarChar(200)
+  reasonMessage String?
+  inputParams   Json?
+  additionData  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("funding_abnormal_actions")
+}
+
+model SavedWallet {
+  id            Int      @id @default(autoincrement())
+  walletAddress String   @db.VarChar(100)
+  walletType    String   @default("") @db.VarChar(50)
+  name          String   @default("") @db.VarChar(100)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@map("saved_wallets")
+}
+
+model PushNotificationTokens {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      Int?
+  platform    String?   @db.VarChar(10)
+  deviceToken String?
+  userAgent   String?
+  isActive    Boolean?  @default(true)
+  createdAt   DateTime? @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime? @default(now()) @db.Timestamptz(6)
+  users       User?     @relation("push_notification_tokensTousers", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  language    String    @default("en") @db.VarChar(10)
+
+  @@unique(fields: [userId, platform, deviceToken, isActive], name: "uniqueDeviceTokenUser")
+  @@map("push_notification_tokens")
+}
+
+model FundingFiatDepositHistory {
+  id                   Int    @id @default(autoincrement())
+  fundingFiatDepositId Int
+  orderRef             String @db.VarChar(200)
+  eventType            String @default("NEW") @db.VarChar(200)
+  fundingFiatDeposit   Json?
+  remiRequest          Json?
+  remiResponse         Json?
+  error                Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("funding_fiat_deposit_histories")
+}
+
+model FundingFiatWithdrawalHistory {
+  id                      Int    @id @default(autoincrement())
+  fundingFiatWithdrawalId Int
+  orderRef                String @db.VarChar(200)
+  eventType               String @default("NEW") @db.VarChar(200)
+  fundingFiatWithdrawal   Json?
+  remiRequest             Json?
+  remiResponse            Json?
+  error                   Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("funding_fiat_withdrawal_histories")
+}
+
+model MarketplaceOrderEvent {
+  id                         Int      @id @default(autoincrement())
+  eventNumber                Int // used for sync from blockchain service
+  blockNumber                Int // used for ref & ensure data integrity
+  logIndex                   Int // used for ref & ensure data integrity
+  eventName                  String   @db.VarChar(100)
+  tokenId                    Int
+  orderId                    Int?
+  originalAmount             Decimal? @db.Decimal(78, 0) // uint256
+  remainAmount               Decimal? @db.Decimal(78, 0) // uint256
+  price                      Decimal? @db.Decimal(78, 0) // uint256
+  amount                     Decimal? @db.Decimal(78, 0) // uint256
+  maximumBUSDAmountWantToPay Decimal? @db.Decimal(78, 0) // uint256
+  busdAmountBuyerHasPaid     Decimal? @db.Decimal(78, 0) // uint256
+  isPrivateSale              Boolean?
+  isUsingPreOrderPool        Boolean?
+  wallet                     String   @db.VarChar(100)
+  status                     Int?     @db.SmallInt
+  createdAt                  DateTime @default(now())
+
+  @@unique(fields: [blockNumber(sort: Desc), logIndex])
+  @@index([eventNumber(sort: Desc)])
+  @@index([orderId], type: Hash)
+  @@index([wallet], type: Hash)
+  @@map("marketplace_order_events")
+}
+
+model MarketplaceOrder {
+  id                          Int          @id @default(autoincrement())
+  orderId                     Int
+  orderType                   String       @db.VarChar(10)
+  tokenId                     Int
+  maker                       String       @db.VarChar(100)
+  originalAmount              Decimal      @db.Decimal(78, 0) // uint256
+  remainAmount                Decimal      @db.Decimal(78, 0) // uint256
+  price                       Decimal      @db.Decimal(78, 0) // uint256
+  isPrivateSale               Boolean
+  status                      Int          @db.SmallInt
+  createdAt                   DateTime     @default(now())
+  updatedAt                   DateTime     @updatedAt
+  marketplaceOrderEventNumber Int          @unique // used for sync from marketplace_order_events
+  primarySale                 PrimarySale?
+
+  @@unique(fields: [orderId(sort: Desc), orderType])
+  @@index([tokenId], type: Hash)
+  @@index([maker], type: Hash)
+  @@map("marketplace_orders")
+}
+
+model PrimarySale {
+  id                   Int              @id @default(autoincrement())
+  tokenId              Int
+  description          String           @default("")
+  presaleStartTime     DateTime
+  presaleEndTime       DateTime
+  allowSecondaryMarket Boolean          @default(false)
+  status               Int              @db.SmallInt
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  marketplaceOrderId   Int              @unique
+  marketplaceOrder     MarketplaceOrder @relation(fields: [marketplaceOrderId], references: [id])
+
+  @@map("primary_sales")
+}
+
+model MintNFTEvent {
+  id          Int      @id @default(autoincrement())
+  eventNumber Int // used for sync from blockchain service
+  blockNumber Int // used for ref & ensure data integrity
+  logIndex    Int // used for ref & ensure data integrity
+  tokenId     Int
+  eventName   String   @db.VarChar(100)
+  operator    String   @db.VarChar(100)
+  from        String   @db.VarChar(100)
+  to          String   @db.VarChar(100)
+  amount      Decimal  @db.Decimal(78, 0) // uint256
+  createdAt   DateTime @default(now())
+
+  @@unique(fields: [blockNumber(sort: Desc), logIndex])
+  @@index([eventNumber(sort: Desc)])
+  @@index([tokenId], type: Hash)
+  @@index([from], type: Hash)
+  @@index([to], type: Hash)
+  @@map("mint_nft_events")
+}
+
+model UserRewardSnapshot {
+  id          Int       @id @default(autoincrement())
+  eventNumber Int // used for sync from blockchain service
+  blockNumber Int // used for ref & ensure data integrity
+  logIndex    Int // used for ref & ensure data integrity
+  snapshotId  String    @db.VarChar(100)
+  tokenId     Int
+  rewardToken String    @db.VarChar(100)
+  amount      Decimal   @db.Decimal(78, 0) // uint256
+  proof       String[]  @default([])
+  wallet      String    @db.VarChar(100)
+  claimedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  snapshot    Snapshot  @relation(fields: [snapshotId], references: [snapshotId])
+
+  @@unique(fields: [blockNumber(sort: Desc), logIndex, snapshotId])
+  @@index([eventNumber(sort: Desc)])
+  @@index([tokenId], type: Hash)
+  @@index([wallet], type: Hash)
+  @@index([snapshotId], type: Hash)
+  @@map("user_reward_snapshots")
+}
+
+model Snapshot {
+  id                   Int                  @id @default(autoincrement())
+  eventNumber          Int // used for sync from blockchain service
+  blockNumber          Int // used for ref & ensure data integrity
+  logIndex             Int // used for ref & ensure data integrity
+  snapshotId           String               @unique @db.VarChar(100)
+  tokenId              Int
+  rewardToken          String               @db.VarChar(100)
+  rewardPerShare       Decimal              @db.Decimal(78, 0) // uint256
+  merkleRoot           String               @unique @db.VarChar(100)
+  snapshotDataFromIPFS Json
+  snapshotedAt         DateTime
+  createdAt            DateTime             @default(now())
+  userRewardSnapshots  UserRewardSnapshot[]
+
+  @@index([eventNumber(sort: Desc)])
+  @@index([tokenId], type: Hash)
+  @@map("snapshots")
+}
